@@ -36,4 +36,7 @@ public class CommandLineArgs {
 
     @Parameter(names = "-tests", description = "Explicited Stack")
     public boolean tests = false;
+
+    @Parameter(names = "-smallpm", description = "Small Progress Measures algorithm")
+    public boolean smallpm = false;
 }
