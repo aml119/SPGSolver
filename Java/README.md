@@ -17,5 +17,5 @@ mvn clean compile assembly:single
 ```
 The .JAR file will then be in the target/ directory. To run the application, use the command:
 ```
-java -jar target/JPGSolver.jar --help
+java -jar target/JPGSolver-1.0.jar --help
 ```
