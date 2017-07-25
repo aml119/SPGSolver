@@ -22,21 +22,30 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class CommandLineArgs {
-    @Parameter(names = "-justHeat", description = "Output time only")
+    @Parameter(names = {"--justHeat", "-jh"}, description = "Output time only")
     public boolean justHeat = false;
 
     @Parameter(description = "Parameters")
     public List<String> params = new ArrayList<String>();
 
-    @Parameter(names = "-parallel", description = "Parallelized Attractor")
+    @Parameter(names = "--parallel, -p", description = "Parallelized Attractor")
     public boolean parallel = false;
 
-    @Parameter(names = "-iterative", description = "Explicited Stack")
+    @Parameter(names = "--iterative, -i", description = "Explicited Stack")
     public boolean iterative = false;
 
-    @Parameter(names = "-tests", description = "Explicited Stack")
+    @Parameter(names = {"--tests", "-t"}, description = "Explicited Stack")
     public boolean tests = false;
 
-    @Parameter(names = "-smallpm", description = "Small Progress Measures algorithm")
+    @Parameter(names = {"--smallpm", "-spm"}, description = "Small Progress Measures algorithm")
     public boolean smallpm = false;
+
+    @Parameter(names = {"--zielonka", "-z"}, description = "Zielonka recursive algorithm")
+    public boolean zielonka = false;
+
+    @Parameter(names = {"--parallelZielonka", "-pz"}, description = "Parallelised Zielonka")
+    public boolean parallelZielonka = false;
+
+    @Parameter(names = {"--help", "-h"}, description = "Show Help")
+    public boolean help = false;
 }

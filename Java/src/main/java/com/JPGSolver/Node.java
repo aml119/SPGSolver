@@ -57,6 +57,14 @@ public class Node {
         return inj;
     }
 
+    // public void setAdj(TIntArrayList adj) {
+    //     this.adj = adj;
+    // }
+    //
+    // public void setInj(TIntArrayList inj) {
+    //     this.inj = inj;
+    // }
+
     public String toString(){
         if (player == 0){
             return "(" + String.format("%02d", priority) + ")";

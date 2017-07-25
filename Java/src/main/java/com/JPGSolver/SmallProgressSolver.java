@@ -23,7 +23,7 @@ QUESTIONS
 public class SmallProgressSolver implements Solver {
 
     private int highestPriority;
-    private boolean debug = true;
+    private boolean debug = false;
 
     public void test()
     {
@@ -112,15 +112,33 @@ public class SmallProgressSolver implements Solver {
 
     }
 
+    public Graph preprocessGraph(Graph other) {
+        int mirror = highestPriority + (highestPriority % 2);
+        if (debug) System.out.println(other.toString());
+        Graph g = new Graph(other);
+        if (debug) System.out.println(g.toString());
+        for (int i = 0; i < g.length(); i++) {
+            g.info[i].setPriority(mirror - g.info[i].getPriority());
+            if (g.info[i].getPriority() > highestPriority) {
+                highestPriority = g.info[i].getPriority();
+            }
+        }
+        if (debug) System.out.println(other.toString());
+        if (debug) System.out.println(g.toString());
+        return g;
+    }
+
     public int[][] win(Graph g) {
         System.out.println("solving with SmallProgressSolver");
+
         BitSet removed = new BitSet(g.length());
 
-        // System.out.println(g.toString());
         highestPriority = g.maxPriority(removed);
+
+        g = preprocessGraph(g);
         // System.out.println("highest priority: " + highestPriority);
         Measure.initMax(g, highestPriority);
-        Measure.printMax();
+        if (debug) Measure.printMax();
 
         //initialise progress measures for all nodes
         Measure[] progressMeasures = new Measure[g.length()];
@@ -138,7 +156,12 @@ public class SmallProgressSolver implements Solver {
         // attempt to lift each node on the queue
         Measure liftedMeasure;
         Node next = q.poll();
+        long count = 0;
         do {
+            if (debug && count % 100 == 0) {
+                System.out.println("dequeue count: " + count);
+            }
+            count++;
             if (debug) System.out.println();
             if (debug) System.out.println();
             if (debug) System.out.print("   dequeue node " + next.getIndex() + ", m: ");
@@ -148,7 +171,7 @@ public class SmallProgressSolver implements Solver {
             if (debug) liftedMeasure.print();
             if (debug) System.out.println();
             // if a lift is successful, add all predecessors of that node to the queue.
-            if (!liftedMeasure.equals(progressMeasures[next.getIndex()], highestPriority + 1)) {
+            if (!liftedMeasure.equals(progressMeasures[next.getIndex()], highestPriority)) {
                 TIntArrayList injNodeIndexes = next.getInj();
                 for (int i = 0; i < injNodeIndexes.size(); i++) {
                     if (debug) System.out.println("enqueue node " + injNodeIndexes.get(i));
@@ -236,7 +259,7 @@ Measure lift(Measure[] progressMeasures, Node node, Graph g) {
             }
             else {
                 if (debug) System.out.println("path: even, < up to " + from.getPriority());
-                return Measure.leastEqual(toMeasure, from.getPriority());
+                return Measure.leastEqual(toMeasure, from.getPriority(), highestPriority);
                 // return toMeasure;
             }
         }
@@ -285,7 +308,8 @@ class Measure {
         this.top = top;
     }
 
-    public Measure(Measure other) {
+    public Measure(Measure other, int highestPriority) {
+        measure = new int[highestPriority + 1];
         System.arraycopy(other.getMeasure(), 0, this.measure, 0, other.getMeasure().length);
         this.top = other.isTop();
     }
@@ -325,8 +349,8 @@ class Measure {
         return new Measure(newMeasure);
     }
 
-    public static Measure leastEqual(Measure other, int pTrunc) {
-        Measure newMeasure = new Measure(other);
+    public static Measure leastEqual(Measure other, int pTrunc, int highestPriority) {
+        Measure newMeasure = new Measure(other, highestPriority);
         if (other.isTop()) {
             newMeasure.setTop(true);
             return newMeasure;

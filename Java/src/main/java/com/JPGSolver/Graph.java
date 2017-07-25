@@ -20,6 +20,24 @@ public class Graph {
         }
     }
 
+    public Graph(Graph other) {
+        this.numNodes = other.length();
+        this.info = new Node[this.numNodes];
+        for (int i = 0; i < other.length(); i++) {
+            this.info[i] = new Node();
+            this.info[i].setPriority(other.info[i].getPriority());
+            this.info[i].setIndex(other.info[i].getIndex());
+            this.info[i].setPlayer(other.info[i].getPlayer());
+            for (int j = 0; j < other.info[i].getAdj().size(); j++) {
+                int adj = other.info[i].getAdj().get(j);
+                this.info[i].addAdj(adj);
+            }
+            for (int j = 0; j < other.info[i].getInj().size(); j++) {
+                this.info[i].addInj(other.info[i].getInj().get(j));
+            }
+        }
+    }
+
     public int length() {
         return info.length;
     }
