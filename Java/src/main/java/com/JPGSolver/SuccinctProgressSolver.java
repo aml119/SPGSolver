@@ -36,7 +36,7 @@ public class SuccinctProgressSolver implements Solver {
 
         System.out.print("[");
         int tuplesLeft = m.getNumberOfUsedTuples();
-        int iStart = d - 1;//m.getNumberOfTuples() * 2 - ((m.getNumberOfTuples()) % 2);
+        int iStart = d - 1;
         for (int i = iStart; i > 0 && tuplesLeft > 0; i -= 2) {
             if (m.getTupleIndicator().contains(i)) {
                 System.out.print(i);
@@ -147,7 +147,6 @@ public class SuccinctProgressSolver implements Solver {
                 newMeasure = singleLift(progressMeasures, node, g.info[adjNodes.get(i)]);
                 if (newMeasure.lessThan(bestLiftedMeasure, node.getPriority())) {
                     bestLiftedMeasure = newMeasure;
-                    bestLiftedMeasure.update(node.getPriority());
                 }
                 App.log_debug("singly lifted to " + newMeasure.toString());
                 App.log_debug("current best " + bestLiftedMeasure.toString());
@@ -170,8 +169,7 @@ public class SuccinctProgressSolver implements Solver {
     }
 
     // returns mu(to) if from is even, or least measure > mu(to) if from is odd.
-    Measure singleLift(Measure[] progressMeasures, Node from, Node to)
-    {
+    Measure singleLift(Measure[] progressMeasures, Node from, Node to) {
         Measure toMeasure = progressMeasures[to.getIndex()];
         Measure fromMeasure = progressMeasures[from.getIndex()];
         if (from.getPriority() % 2 == 0)   // then this is an even priority
@@ -212,11 +210,9 @@ public class SuccinctProgressSolver implements Solver {
     private class Measure {
         private boolean top;
         private int bitsUsed;
-        // how many total tuples this measure has
-        private int numberOfTuples;
         // how many tuples this measure has that aren't empty
         private int numberOfUsedTuples;
-        private int maxNumberOfTuples;
+        // the max number of tuples this measure can have due to priority
         private ArrayList<ArrayList<Boolean>> measure;
         private TIntArrayList tupleIndicator;
 
@@ -225,7 +221,7 @@ public class SuccinctProgressSolver implements Solver {
         }
 
         public boolean isBottom() {
-            return (!isTop() && measure.size() == 0);
+            return (!isTop() && length() == 0);
         }
 
         public void setTop(boolean top) {
@@ -237,9 +233,6 @@ public class SuccinctProgressSolver implements Solver {
             this.measure = new ArrayList<ArrayList<Boolean>>();
             this.tupleIndicator = new TIntArrayList();
             this.bitsUsed = 0;
-            // not sure if I should find the ceiling of these...
-            this.maxNumberOfTuples = (d / 2) - (priority / 2);
-            this.numberOfTuples = 0;
             this.numberOfUsedTuples = 0;
         }
 
@@ -259,9 +252,6 @@ public class SuccinctProgressSolver implements Solver {
             }
 
             calcBitsUsed();
-            // not sure if I should find the ceiling of these...
-            this.maxNumberOfTuples = (d / 2) - (priority / 2);
-            this.numberOfTuples = 0;
         }
 
         public Measure(boolean top) {
@@ -269,29 +259,19 @@ public class SuccinctProgressSolver implements Solver {
             this.measure = new ArrayList<ArrayList<Boolean>>();
             this.tupleIndicator = new TIntArrayList();
             this.bitsUsed = 0;
-            this.maxNumberOfTuples = 0;
-            this.numberOfTuples = 0;
             this.numberOfUsedTuples = 0;
         }
 
-        public void update(int priority) {
-            this.maxNumberOfTuples = (d / 2) - (priority / 2);
-        }
-
+        // sets the number of bits that are present in the measure
         private void calcBitsUsed() {
             int result = 0;
-            for (int i = 0; i < measure.size(); i++) {
+            for (int i = 0; i < length(); i++) {
                 result += measure.get(i).size();
             }
             bitsUsed = result;
         }
 
-        // public Measure(Measure other) {
-        //     this.top = other.isTop();
-        //     this.measure = copyMeasure(other.getMeasure());
-        //     this.tupleIndicator = copyTupleIndicator(other.getTupleIndicator());
-        // }
-        //
+        // returns a copy of a measure, used for cloning Measure objects
         private ArrayList<ArrayList<Boolean>> copyMeasure(Measure other,
                                                           int priority) {
             ArrayList<ArrayList<Boolean>> result = new ArrayList<ArrayList<Boolean>>();
@@ -309,6 +289,7 @@ public class SuccinctProgressSolver implements Solver {
             return result;
         }
 
+        // returns a copy of a tupleIndicator, used for cloning measure objects
         private TIntArrayList copyTupleIndicator(TIntArrayList other,
                                                  int priority) {
             TIntArrayList result = new TIntArrayList();
@@ -321,6 +302,7 @@ public class SuccinctProgressSolver implements Solver {
             return result;
         }
 
+        // number of tuples in the measure with bits used
         public int length() {
             return measure.size();
         }
@@ -333,6 +315,7 @@ public class SuccinctProgressSolver implements Solver {
             this.bitsUsed = b;
         }
 
+        // returns how many bits are used before the given truncation
         private int bitsUsedUpToTrunc(int trunc) {
             int result = bitsUsed;
             for (int i = 1; i < trunc; i += 2) {
@@ -368,10 +351,6 @@ public class SuccinctProgressSolver implements Solver {
             tupleIndicator.set(i, val);
         }
 
-        public int getNumberOfTuples() {
-            return numberOfTuples;
-        }
-
         public int getNumberOfUsedTuples() {
             return numberOfUsedTuples;
         }
@@ -380,14 +359,17 @@ public class SuccinctProgressSolver implements Solver {
             this.numberOfUsedTuples = n;
         }
 
+        // increment the number of tupled used
         public void incNumberOfUsedTuples() {
             this.numberOfUsedTuples++;
         }
 
+        // decrement the number of tuples used
         public void decNumberOfUsedTuples() {
             this.numberOfUsedTuples--;
         }
 
+        // reduce the number of used tuples by n
         public void lowerNumUsedTuples(int n) {
             this.numberOfUsedTuples -= n;
         }
@@ -400,12 +382,19 @@ public class SuccinctProgressSolver implements Solver {
             return (d / 2) - (priority / 2);
         }
 
+        // the position in the measure where the lowest priority tuple can be
+        // for this measure
         private int lastPossibleTuplePosition(int priority) {
             int a = d - 1 - (2 * (calcMaxNumTuples(priority) - 1));
             int b = priority + ((priority + 1) % 2);
             return Math.max(a, b);
         }
 
+        private int lastPossibleTupleIndex(int priority) {
+            return tupleIndicator.indexOf(lastPossibleTuplePosition(priority));
+        }
+
+        // position of the lowest priority tuple with bits, after truncation
         private int lastTuplePosition(int priority) {
             int i = 1;
             int lastTuplePosition = tupleIndicator.get(tupleIndicator.size() - i);
@@ -416,16 +405,21 @@ public class SuccinctProgressSolver implements Solver {
             return lastTuplePosition;
         }
 
+        // where the last tuple appears in the measure/tupleIndicator arrays.
+        // (tuple must have bits in it)
         private int lastTupleIndex(int priority) {
             return tupleIndicator.indexOf(lastTuplePosition(priority));
         }
 
+        // position of the lowest priority tuple with bits, after truncation
         private int lastUsedTuplePosition(int priority) {
             int result = d - 1 - ((numberOfUsedTuples - 1) * 2);
             while(result < priority) { result += 2; }
             return result;
         }
 
+        // where the last tuple appears in the measure/tupleIndicator arrays.
+        // (tuple could have no bits in it)
         private int lastUsedTupleIndex(int priority) {
             return tupleIndicator.indexOf(lastUsedTuplePosition(priority));
         }
@@ -449,7 +443,6 @@ public class SuccinctProgressSolver implements Solver {
                 return caseThree(priority);
             }
 
-            // all bits used, last nonempty tuple is of form (1)+
             if (isCaseFour(priority)) {
                 return caseFour(priority);
             }
@@ -503,7 +496,9 @@ public class SuccinctProgressSolver implements Solver {
         // add 0(1)* to the end of the last tuple using as many bits as possible
         private Measure caseTwo(int priority) {
             Measure result = new Measure(priority, this);
-            int index = result.getTupleIndicator().indexOf(0, lastPossibleTuplePosition(priority));
+            int index = result.lastPossibleTupleIndex(priority);
+
+            // either get the tuple to change or create it if it doesn't exist
             ArrayList<Boolean> tuple;
             if (index == -1) {
                 tuple = new ArrayList<Boolean>();
@@ -512,6 +507,7 @@ public class SuccinctProgressSolver implements Solver {
             } else {
                 tuple = result.getMeasure().get(index);
             }
+
             tuple.add(new Boolean(true));
             for (int i = result.getBitsUsed() + 1; i < maxBits; i++) {
                 tuple.add(new Boolean(false));
@@ -524,30 +520,23 @@ public class SuccinctProgressSolver implements Solver {
         private boolean isCaseThree(int priority) {
             // make sure all bits are used
             if (bitsUsedUpToTrunc(priority) != maxBits) return false;
-            // System.out.println("case3check, all bits used");
-            // System.out.println("measure.size(): " + measure.size());
-            // return true if there is a 0 in the last used tuple
+
+            // if there is a sinlge 0 in the tuple this is a case 3.
             ArrayList<Boolean> tuple = measure.get(tupleIndicator.indexOf(0, lastTuplePosition(priority)));
             for (int i = 0; i < tuple.size(); i++) {
                 if (tuple.get(i).booleanValue() == false) {
                     return true;
                 }
             }
-            // System.out.println("case3check, found no 0s");
             return false;
         }
 
         // remove the last 0 in the last used Measure, and all following 1s.
         private Measure caseThree(int priority) {
             Measure result = new Measure(priority, this);
-            // int position = priority + ((priority + 1) % 2);
-            //
-            // while (!result.getTupleIndicator().contains(position)) {
-            //     position += 2;
-            // }
 
             int position = lastTuplePosition(priority);
-            int index = result.getTupleIndicator().indexOf(position);
+            int index = lastTupleIndex(priority);
 
             ArrayList<Boolean> tuple = result.getMeasure().get(index);
             int i;
@@ -559,13 +548,15 @@ public class SuccinctProgressSolver implements Solver {
                 tuple.remove(i);
             }
 
+            // diff is the number of bits removed in the tuple
             int diff = (position - lastPossibleTuplePosition(priority)) / 2;
             result.lowerNumUsedTuples(diff);
-            // if (i == 0) result.decNumberOfUsedTuples();
+
             result.calcBitsUsed();
             return result;
         }
 
+        // all bits used, last nonempty tuple is of form (1)+
         private boolean isCaseFour(int priority) {
             // make sure all bits are used
             if (bitsUsedUpToTrunc(priority) != maxBits) return false;
@@ -586,6 +577,7 @@ public class SuccinctProgressSolver implements Solver {
             return true;
         }
 
+        // remove the last tuple and append 1(0)* to the next lowest tuple.
         private Measure caseFour(int priority) {
             Measure result = new Measure(priority, this);
             int index = lastTupleIndex(priority);
@@ -656,7 +648,7 @@ public class SuccinctProgressSolver implements Solver {
 
             s += "[";
             int tuplesLeft = getNumberOfUsedTuples();
-            int iStart = d - 1;//m.getNumberOfTuples() * 2 - ((m.getNumberOfTuples()) % 2);
+            int iStart = d - 1;
             for (int i = iStart; i > 0 && tuplesLeft > 0; i -= 2) {
                 if (tupleIndicator.contains(i)) {
                     s += i;
@@ -753,8 +745,8 @@ public class SuccinctProgressSolver implements Solver {
             // if there are more or equal #tuples in this than other, false
             // else there are more tuples in other but not this, true
 
-            if (Math.min(this.numberOfUsedTuples, (d / 2) - (priority / 2)) >=
-            Math.min(other.getNumberOfUsedTuples(), (d / 2) - (priority / 2))) {
+            if (Math.min(this.numberOfUsedTuples, calcMaxNumTuples(priority)) >=
+            Math.min(other.getNumberOfUsedTuples(), calcMaxNumTuples(priority))) {
                 thisShorter = false;
             }
             else thisShorter = true;
@@ -825,8 +817,8 @@ public class SuccinctProgressSolver implements Solver {
             boolean thisLonger;
             // if there are more tuples in this than other, true
             // else there are more or equal #tuples in other than this, false
-            if (Math.min(this.numberOfUsedTuples, (d / 2) - (priority / 2)) >
-            Math.min(other.getNumberOfUsedTuples(), (d / 2) - (priority / 2))) {
+            if (Math.min(this.numberOfUsedTuples, calcMaxNumTuples(priority)) >
+            Math.min(other.getNumberOfUsedTuples(), calcMaxNumTuples(priority))) {
                 thisLonger = true;
             }
             else thisLonger = false;
