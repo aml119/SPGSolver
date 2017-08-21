@@ -24,6 +24,8 @@ import java.util.List;
 
 public class App {
 
+    private static int verbosity;
+
     public static void runTests(AsyncSolver3 solver, int cores, int min, int max, int step, int tries, String path, String generator) {
 
         List<String[]> dataAttr = new ArrayList<>();
@@ -129,8 +131,11 @@ public class App {
         System.out.println();
         System.out.println("Usage: java -jar JPGSolver.jar [-options] [filepaths]");
         System.out.println("Where options are:");
-        System.out.println("   --justHeat/-jh              Only outputs the timings, not the solutions");
+        System.out.println("   --justHeat/-jh              Only outputs the timings, not the solutions.");
+        System.out.println("   --verify/-vf                Verify the solution given. Can be used with -jh.");
+        System.out.println("   --verbosity/-vb             Verbosity Level, must be followed with a 1 (for verbose) or 2 (for debug)");
         System.out.println("   --smallpm/-spm              Solve the supplied games with the small progress measures algorithm");
+        System.out.println("   --succinctpm/-suc           Solve the game with the succinct progress measures algorithm");
         System.out.println("   --zielonka/-z               Solve the supplied games with the zielonka recursive algorithm.");
         System.out.println("   --parallelZielonka/-pz [n]  where n is the number of threads to run.");
         System.out.println("   --tests/-t [a b c d e f g]  Run a set of tests with the following arguments:");
@@ -155,15 +160,19 @@ public class App {
             return;
         }
 
+        verbosity = cli.verbosity.intValue();
+
         // choose the solver to use
         Solver solver;
 
         if (cli.zielonka) {
             solver = new RecursiveSolver();
-        } else if (cli.parallelZielonka) {
-            solver = new AsyncSolver3();
+        } else if (!cli.parallelZielonkaCores.equals(-1)) {
+            solver = new AsyncSolver3(cli.parallelZielonkaCores.intValue());
         } else if (cli.smallpm) {
             solver = new SmallProgressSolver();
+        } else if (cli.succinctpm) {
+            solver = new SuccinctProgressSolver();
         } else {
             solver = new AsyncSolver();
         }
@@ -192,18 +201,19 @@ public class App {
             int[][] solution = solver.win(G);
             sw2.stop();
             System.out.println(file + " " + sw2);
-            if (cli.justHeat) {
-                continue;
+            if (!cli.justHeat) {
+                Arrays.sort(solution[0]);
+                Arrays.sort(solution[1]);
+                printSolution(solution);
             }
-            System.out.println("Checking solution...");
-            int[][] slnCheck = solverCheck.win(G);
-            Arrays.sort(solution[0]);
-            Arrays.sort(solution[1]);
-            printSolution(solution);
-            boolean valid = checkSolution(solution, slnCheck);
-            System.out.println("Validity of solution: " + valid);
-            if (!valid) System.out.println("Real Solution: ");
-            if (!valid) printSolution(slnCheck);
+            if (cli.verify) {
+                System.out.println("Checking solution...");
+                int[][] slnCheck = solverCheck.win(G);
+                boolean valid = checkSolution(solution, slnCheck);
+                System.out.println("Validity of solution: " + valid);
+                if (!valid) System.out.println("Real Solution: ");
+                if (!valid) printSolution(slnCheck);
+            }
         }
     }
 
@@ -280,5 +290,17 @@ public class App {
             if (!Ints.contains(s2[1], x)) return false;
         }
         return true;
+    }
+
+    public static void log_verbose(String s) {
+        if (verbosity > 0) {
+            System.out.println(s);
+        }
+    }
+
+    public static void log_debug(String s) {
+        if (verbosity > 1) {
+            System.out.println(s);
+        }
     }
 }

@@ -11,7 +11,6 @@ import java.util.Queue;
 public class SmallProgressSolver implements Solver {
 
     private int highestPriority;
-    private boolean debug = false;
 
     /*
         the small progress measures algorithm works on a slightly different
@@ -33,12 +32,10 @@ public class SmallProgressSolver implements Solver {
         for (int i = 0; i < g.length(); i++) {
             g.info[i].setPriority(mirror - g.info[i].getPriority());
         }
-        if (debug) {
-            System.out.println("Original Graph:");
-            System.out.println(other.toString());
-            System.out.println("Preprocessed Graph:");
-            System.out.println(g.toString());
-        }
+        App.log_debug("Original Graph:");
+        App.log_debug(other.toString());
+        App.log_debug("Preprocessed Graph:");
+        App.log_debug(g.toString());
         return g;
     }
 
@@ -48,7 +45,7 @@ public class SmallProgressSolver implements Solver {
         and one for the winning region of player 1 (int[1][])
     */
     public int[][] win(Graph g) {
-        System.out.println("Solving with SmallProgressSolver");
+        App.log_verbose("Solving with SmallProgressSolver");
 
         // find the highest priority, maxPriority function is weird so needs
         // a bitset
@@ -58,7 +55,7 @@ public class SmallProgressSolver implements Solver {
         g = preprocessGraph(g);
         // calculate and set the maximum progress measure
         Measure.initMax(g, highestPriority);
-        if (debug) Measure.printMax();
+        App.log_debug(Measure.maxToString());
 
         //initialise progress measures for all nodes
         Measure[] progressMeasures = new Measure[g.length()];
@@ -78,19 +75,17 @@ public class SmallProgressSolver implements Solver {
         while(!q.isEmpty()) {
             next = q.poll();
             liftedMeasure = lift(progressMeasures, next, g);
-            if (debug) {
-                System.out.println();
-                System.out.print("   dequeue node " + next.getIndex() + ", m: ");
-                progressMeasures[next.getIndex()].print();
-                System.out.print("lifted measure: ");
-                liftedMeasure.print();
-                System.out.println();
-            }
+            App.log_debug("");
+            App.log_verbose("   dequeue node " + next.getIndex());
+            App.log_debug("m: " + progressMeasures[next.getIndex()].toString());
+            App.log_debug("lifted measure: ");
+            App.log_debug(liftedMeasure.toString());
+            App.log_debug("");
             // if a lift is successful, add all predecessors of that node to the queue.
             if (!liftedMeasure.equals(progressMeasures[next.getIndex()], highestPriority)) {
                 TIntArrayList injNodeIndexes = next.getInj();
                 for (int i = 0; i < injNodeIndexes.size(); i++) {
-                    if (debug) System.out.println("enqueue node " + injNodeIndexes.get(i));
+                    App.log_debug("enqueue node " + injNodeIndexes.get(i));
                     q.add(g.info[injNodeIndexes.get(i)]);
                 }
                 progressMeasures[next.getIndex()] = liftedMeasure;
@@ -127,42 +122,31 @@ Measure lift(Measure[] progressMeasures, Node node, Graph g) {
     Measure bestLiftedMeasure;
     Measure newMeasure;
 
-    if (debug) System.out.println("CURRENTLY LIFTING");
-
-
     if (node.getPlayer() == 0) {
         // if node is even, choose the minimum progressed measure,
         // therefore start with the top measure
         bestLiftedMeasure = new Measure(highestPriority, true);
-        if (debug) System.out.println("Lifting from a p0 node");
+        App.log_debug("Lifting from a p0 node");
         for (int i = 0; i < adjNodes.size(); i++) {
             newMeasure = singleLift(progressMeasures, node, g.info[adjNodes.get(i)]);
             if (newMeasure.lessThan(bestLiftedMeasure, highestPriority)) {
                 bestLiftedMeasure = newMeasure;
             }
-            if (debug) {
-                System.out.print("singly lifted to ");
-                newMeasure.print();
-                System.out.print("current best ");
-                bestLiftedMeasure.print();
-            }
+            App.log_debug("singly lifted to " + newMeasure.toString());
+            App.log_debug("current best " + bestLiftedMeasure.toString());
         }
     } else {
         // if node is odd, choose the maximum progressed measure.
         // therefore start with the minimum measure
         bestLiftedMeasure = new Measure(highestPriority);
-        if (debug) System.out.println("Lifting from a p1 node");
+        App.log_debug("Lifting from a p1 node");
         for (int i = 0; i < adjNodes.size(); i++) {
             newMeasure = singleLift(progressMeasures, node, g.info[adjNodes.get(i)]);
             if (newMeasure.greaterThan(bestLiftedMeasure, highestPriority)) {
                 bestLiftedMeasure = newMeasure;
             }
-            if (debug) {
-                System.out.print("singly lifted to ");
-                newMeasure.print();
-                System.out.print("current best ");
-                bestLiftedMeasure.print();
-            }
+            App.log_debug("singly lifted to " + newMeasure.toString());
+            App.log_debug("current best " + bestLiftedMeasure.toString());
         }
     }
     return bestLiftedMeasure;
@@ -176,21 +160,21 @@ Measure lift(Measure[] progressMeasures, Node node, Graph g) {
         if (from.getPriority() % 2 == 0)   // then this is an even priority
         {
             if (!fromMeasure.lessThan(toMeasure, from.getPriority())) {
-                if (debug) System.out.println("path: even, >= up to " + from.getPriority());
+                App.log_debug("path: even, >= up to " + from.getPriority());
                 return fromMeasure;
             }
             else {
-                if (debug) System.out.println("path: even, < up to " + from.getPriority());
+                App.log_debug("path: even, < up to " + from.getPriority());
                 return Measure.leastEqual(toMeasure, from.getPriority(), highestPriority);
             }
         }
         else    // then this is an odd priority
         {
             if (fromMeasure.greaterThan(toMeasure, from.getPriority())) {
-                if (debug) System.out.println("path: odd, > up to " + from.getPriority());
+                App.log_debug("path: odd, > up to " + from.getPriority());
                 return fromMeasure;
             } else {
-                if (debug) System.out.println("path: odd, <= up to " + from.getPriority());
+                App.log_debug("path: odd, <= up to " + from.getPriority());
                 return Measure.leastAbove(toMeasure, from.getPriority());
             }
         }
@@ -306,21 +290,22 @@ class Measure {
         }
     }
 
-    public static void printMax() {
-        System.out.print("[" + max[0]);
+    public static String maxToString() {
+        String s = "[" + max[0];
         for (int i = 1; i < max.length; i++) {
-            System.out.print(", " + max[i]);
+            s += ", " + max[i];
         }
-        System.out.println("]");
+        s += "]";
+        return s;
     }
 
-    public void print() {
-        System.out.print("[" + measure[0]);
+    public String toString() {
+        String s = "[" + measure[0];
         for (int i = 1; i < measure.length; i++) {
-            System.out.print(", " + measure[i]);
+            s += ", " + measure[i];
         }
-        if (this.top) System.out.println("](T)");
-        else System.out.println("]");
+        s += "]";
+        return s;
     }
 
     public boolean equals(Measure other, int pTruncation)

@@ -40,12 +40,21 @@ public class CommandLineArgs {
     @Parameter(names = {"--smallpm", "-spm"}, description = "Small Progress Measures algorithm")
     public boolean smallpm = false;
 
+    @Parameter(names = {"--succinctpm", "-suc"}, description = "Small Progress Measures algorithm")
+    public boolean succinctpm = false;
+
     @Parameter(names = {"--zielonka", "-z"}, description = "Zielonka recursive algorithm")
     public boolean zielonka = false;
 
     @Parameter(names = {"--parallelZielonka", "-pz"}, description = "Parallelised Zielonka")
-    public boolean parallelZielonka = false;
+    public Integer parallelZielonkaCores = -1;
 
-    @Parameter(names = {"--help", "-h"}, description = "Show Help")
-    public boolean help = false;
+    @Parameter(names = {"--help", "-h"}, help = true)
+    public boolean help;
+
+    @Parameter(names = {"--verify", "-vf"}, description = "Verify the solution")
+    public boolean verify = false;
+
+    @Parameter(names = {"--verbosity", "-vb"}, description = "Set Verbosity Level")
+    public Integer verbosity = 0;
 }
