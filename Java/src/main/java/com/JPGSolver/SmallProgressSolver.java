@@ -49,8 +49,10 @@ public class SmallProgressSolver implements Solver {
 
         // find the highest priority, maxPriority function is weird so needs
         // a bitset
-        BitSet b = new BitSet(g.length());
-        highestPriority = g.maxPriority(b);
+        // the bitset will be used to determine what is in the q quickly
+        BitSet nodesPresent = new BitSet(g.length());
+        highestPriority = g.maxPriority(nodesPresent);
+
 
         g = preprocessGraph(g);
         // calculate and set the maximum progress measure
@@ -64,33 +66,49 @@ public class SmallProgressSolver implements Solver {
         }
 
         // create a queue of nodes to lift
+        // q is initially full so set all bits of bitset to true
         Queue<Node> q = new LinkedList<Node>();
         for (int i = 0; i < g.length(); i++) {
             q.add(g.info[i]);
+            nodesPresent.set(i);
         }
+
+        int numDequeues = 0;
 
         // attempt to lift each node on the queue
         Measure liftedMeasure;
         Node next;
         while(!q.isEmpty()) {
+            numDequeues++;
+            // get the next node to try to lift
             next = q.poll();
+            nodesPresent.clear(next.getIndex());
+
             liftedMeasure = lift(progressMeasures, next, g);
+
             App.log_debug("");
             App.log_verbose("   dequeue node " + next.getIndex());
             App.log_debug("m: " + progressMeasures[next.getIndex()].toString());
             App.log_debug("lifted measure: ");
             App.log_debug(liftedMeasure.toString());
             App.log_debug("");
+
             // if a lift is successful, add all predecessors of that node to the queue.
             if (!liftedMeasure.equals(progressMeasures[next.getIndex()], highestPriority)) {
                 TIntArrayList injNodeIndexes = next.getInj();
                 for (int i = 0; i < injNodeIndexes.size(); i++) {
-                    App.log_debug("enqueue node " + injNodeIndexes.get(i));
-                    q.add(g.info[injNodeIndexes.get(i)]);
+                    int toAdd = injNodeIndexes.get(i);
+                    if (true || !nodesPresent.get(toAdd)) {
+                        App.log_debug("enqueue node " + toAdd);
+                        nodesPresent.set(toAdd);
+                        q.add(g.info[toAdd]);
+                    }
                 }
                 progressMeasures[next.getIndex()] = liftedMeasure;
             }
         }
+
+        System.out.println("numDequeues: " + numDequeues);
 
         // once lifting is complete, populate solution object with...
         TIntArrayList evenWinningSet = new TIntArrayList();
