@@ -98,7 +98,7 @@ public class SmallProgressSolver implements Solver {
                 TIntArrayList injNodeIndexes = next.getInj();
                 for (int i = 0; i < injNodeIndexes.size(); i++) {
                     int toAdd = injNodeIndexes.get(i);
-                    if (true || !nodesPresent.get(toAdd)) {
+                    if (!nodesPresent.get(toAdd)) {
                         App.log_debug("enqueue node " + toAdd);
                         nodesPresent.set(toAdd);
                         q.add(g.info[toAdd]);
