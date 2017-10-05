@@ -26,6 +26,113 @@ public class App {
 
     private static int verbosity;
 
+    private static Solver createNewSolver(CommandLineArgs cli) {
+        if (cli.zielonka) {
+            return new RecursiveSolver();
+        } else if (!cli.parallelZielonkaCores.equals(-1)) {
+            return new AsyncSolver3(cli.parallelZielonkaCores.intValue());
+        } else if (cli.smallpm) {
+            return new SmallProgressSolver();
+        } else if (cli.succinctpm) {
+            return new SuccinctProgressSolver();
+        } else {
+            return new AsyncSolver();
+        }
+    }
+
+    public static void runRandomBenchmark(int gameSize, int numGames,
+    String genPath, CommandLineArgs cli) {
+        Solver solver;
+        String gamePath = "benchgame";
+        String s = Integer.toString(gameSize);
+        for (int i = 1; i <= numGames; i++) {
+            try {
+                // create the file for the game
+                File gameFile = new File(gamePath + i + ".gm");
+
+                // create the solver
+                solver = createNewSolver(cli);
+
+                // generate the game
+                gameFile.createNewFile();
+                Process p = new ProcessBuilder(genPath, s, s, "1", s)
+                .redirectOutput(gameFile).start();
+                // System.out.println("Generating Graph ................ ");
+                p.waitFor();
+
+                // run the solver
+                Graph G = Graph.initFromFile(gamePath + i + ".gm");
+                Stopwatch timer = Stopwatch.createStarted();
+                solver.win(G);
+                timer.stop();
+                // System.out.println("solved " + gamePath + i + ".gm in " + timer);
+            } catch (Exception e) {
+                System.out.println("Failed to complete Benchmark");
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public static void runJurdBenchmark(String depth, String width,
+     String genPath, CommandLineArgs cli) {
+        Solver solver;
+        String gamePath = "benchgame";
+        try {
+            // create the file for the game
+            File gameFile = new File(gamePath + ".gm");
+
+            // create the solver
+            solver = createNewSolver(cli);
+
+            // generate the game
+            gameFile.createNewFile();
+            Process p = new ProcessBuilder(genPath, depth, width)
+            .redirectOutput(gameFile).start();
+            p.waitFor();
+
+            // run the solver
+            Graph G = Graph.initFromFile(gamePath + ".gm");
+            Stopwatch timer = Stopwatch.createStarted();
+            solver.win(G);
+            timer.stop();
+            System.out.println("solved " + gamePath + ".gm in " + timer);
+        } catch (Exception e) {
+            System.out.println("Failed to complete Benchmark");
+            e.printStackTrace();
+        }
+    }
+
+    public static void runLadderBenchmark(String index, String genPath,
+    int numGames, CommandLineArgs cli) {
+        Solver solver;
+        String gamePath = "benchgame";
+        for (int i = 0; i <= numGames; i++) {
+            try {
+                // create the file for the game
+                File gameFile = new File(gamePath + i + ".gm");
+
+                // create the solver
+                solver = createNewSolver(cli);
+
+                // generate the game
+                gameFile.createNewFile();
+                Process p = new ProcessBuilder(genPath, index)
+                .redirectOutput(gameFile).start();
+                System.out.println("Generating Graph ................ ");
+                p.waitFor();
+
+                // run the solver
+                Graph G = Graph.initFromFile(gamePath + i + ".gm");
+                Stopwatch timer = Stopwatch.createStarted();
+                solver.win(G);
+                timer.stop();
+                System.out.println("solved " + gamePath + i + ".gm in " + timer);
+            } catch (Exception e) {
+                System.out.println("Failed to complete Benchmark");
+            }
+        }
+    }
+
     public static void runTests(AsyncSolver3 solver, int cores, int min, int max, int step, int tries, String path, String generator) {
 
         List<String[]> dataAttr = new ArrayList<>();
@@ -41,8 +148,8 @@ public class App {
             }
         );
 
-        int colunms = 1 + 1 + cores;
-        String[] row =  new String[colunms];
+        int columns = 1 + 1 + cores;
+        String[] row =  new String[columns];
         row [0] = "Attractor Time";
         row [1] = "Seq";
         for (int i = 2; i < cores + 2; i++) {
@@ -50,7 +157,7 @@ public class App {
         }
         dataAttr.add(row);
         dataTot.add(new String[cores]);
-        row = Arrays.copyOf(row, colunms);
+        row = Arrays.copyOf(row, columns);
         row [0] = "Total Time";
         dataTot.add(row);
 
@@ -59,8 +166,8 @@ public class App {
             RecursiveSolver seq = new RecursiveSolver();
             for (cur = min; cur <= max; cur += step) {
                 for (int t = 1; t <= tries; t++) {
-                    String[] rowTot = new String[colunms];
-                    String[] rowAttr = new String[colunms];
+                    String[] rowTot = new String[columns];
+                    String[] rowAttr = new String[columns];
                     rowTot[0] = Integer.toString(cur) + "-" + Integer.toString(t);
                     rowAttr[0] = rowTot[0];
 
@@ -163,19 +270,7 @@ public class App {
         verbosity = cli.verbosity.intValue();
 
         // choose the solver to use
-        Solver solver;
-
-        if (cli.zielonka) {
-            solver = new RecursiveSolver();
-        } else if (!cli.parallelZielonkaCores.equals(-1)) {
-            solver = new AsyncSolver3(cli.parallelZielonkaCores.intValue());
-        } else if (cli.smallpm) {
-            solver = new SmallProgressSolver();
-        } else if (cli.succinctpm) {
-            solver = new SuccinctProgressSolver();
-        } else {
-            solver = new AsyncSolver();
-        }
+        Solver solver = createNewSolver(cli);
 
         if (cli.tests) {
             if (cli.params.size() < 7) throw new RuntimeException("Missing Parameters");
@@ -193,6 +288,42 @@ public class App {
             return;
         }
 
+        List<String> randBenchList = cli.randBench;
+        List<String> jurdBenchList = cli.jurdBench;
+        List<String> ladderBenchList = cli.ladderBench;
+
+        if (randBenchList.size() != 0) {
+            int gameSize = Integer.parseInt(randBenchList.get(0));
+            int numGames = Integer.parseInt(randBenchList.get(1));
+            String genPath = randBenchList.get(2);
+            if (!new File(genPath).canExecute()) {
+                throw new RuntimeException("Need a working game generator");
+            }
+            runRandomBenchmark(gameSize, numGames, genPath, cli);
+            return;
+        }
+
+        if (jurdBenchList.size() != 0) {
+            String depth = jurdBenchList.get(0);
+            String width = jurdBenchList.get(1);
+            String genPath = jurdBenchList.get(2);
+            if (!new File(genPath).canExecute()) {
+                throw new RuntimeException("Need a working game generator");
+            }
+            runJurdBenchmark(depth, width, genPath, cli);
+            return;
+        }
+
+        if (ladderBenchList.size() != 0) {
+            String index = ladderBenchList.get(0);
+            int numGames = Integer.parseInt(ladderBenchList.get(1));
+            String genPath = ladderBenchList.get(2);
+            if (!new File(genPath).canExecute()) {
+                throw new RuntimeException("Need a working game generator");
+            }
+            runLadderBenchmark(index, genPath, numGames, cli);
+            return;
+        }
 
         for (String file : cli.params) {
             Graph G = Graph.initFromFile(file);
@@ -200,7 +331,7 @@ public class App {
             Stopwatch sw2 = Stopwatch.createStarted();
             int[][] solution = solver.win(G);
             sw2.stop();
-            System.out.println(file + " " + sw2);
+            System.out.println("solved " + file + " in " + sw2);
             if (!cli.justHeat) {
                 Arrays.sort(solution[0]);
                 Arrays.sort(solution[1]);
@@ -217,34 +348,34 @@ public class App {
         }
     }
 
-    public static void cleanMain( String[] args ) {
-        CommandLineArgs cli = new CommandLineArgs();
-        new JCommander(cli, args);
-
-        Stopwatch sw1 = Stopwatch.createStarted();
-        Graph G = Graph.initFromFile(cli.params.get(0));
-        sw1.stop();
-        System.out.println("Parsed in " + sw1);
-        Solver solver = cli.parallel ? new AsyncSolver() : cli.iterative ?new IterativeSolver() : new RecursiveSolver();
-
-        Stopwatch sw2 = Stopwatch.createStarted();
-        int[][] solution = solver.win(G);
-        sw2.stop();
-        System.out.println("Solved in " + sw2);
-
-        Solver solver2 = new RecursiveSolver();
-        int[][] solution2 = solver2.win(G);
-        System.out.print(checkSolution(solution, solution2));
-
-        if (cli.justHeat) {
-            return;
-        }
-
-        Arrays.sort(solution[0]);
-        Arrays.sort(solution[1]);
-
-        printSolution(solution);
-    }
+    // public static void cleanMain( String[] args ) {
+    //     CommandLineArgs cli = new CommandLineArgs();
+    //     new JCommander(cli, args);
+    //
+    //     Stopwatch sw1 = Stopwatch.createStarted();
+    //     Graph G = Graph.initFromFile(cli.params.get(0));
+    //     sw1.stop();
+    //     System.out.println("Parsed in " + sw1);
+    //     Solver solver = cli.parallel ? new AsyncSolver() : cli.iterative ?new IterativeSolver() : new RecursiveSolver();
+    //
+    //     Stopwatch sw2 = Stopwatch.createStarted();
+    //     int[][] solution = solver.win(G);
+    //     sw2.stop();
+    //     System.out.println("Solved in " + sw2);
+    //
+    //     Solver solver2 = new RecursiveSolver();
+    //     int[][] solution2 = solver2.win(G);
+    //     System.out.print(checkSolution(solution, solution2));
+    //
+    //     if (cli.justHeat) {
+    //         return;
+    //     }
+    //
+    //     Arrays.sort(solution[0]);
+    //     Arrays.sort(solution[1]);
+    //
+    //     printSolution(solution);
+    // }
 
     public static String swSecondify(String s) {
         String[] strings = s.split(" ");

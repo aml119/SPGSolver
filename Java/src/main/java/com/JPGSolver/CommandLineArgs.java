@@ -28,11 +28,14 @@ public class CommandLineArgs {
     @Parameter(description = "Parameters")
     public List<String> params = new ArrayList<String>();
 
-    @Parameter(names = "--parallel, -p", description = "Parallelized Attractor")
-    public boolean parallel = false;
+    @Parameter(names = {"--randbench", "-rb"}, arity = 3, description = "Benchmark the given algorithms on randomgames")
+    public List<String> randBench = new ArrayList<String>();
 
-    @Parameter(names = "--iterative, -i", description = "Explicited Stack")
-    public boolean iterative = false;
+    @Parameter(names = {"--jurdbench", "-jb"}, arity = 3, description = "Benchmark the given algorithms on jurdzinski games")
+    public List<String> jurdBench = new ArrayList<String>();
+
+    @Parameter(names = {"--ladderbench", "-lb"}, arity = 3, description = "Benchmark the given algorithms on recursive ladder games")
+    public List<String> ladderBench = new ArrayList<String>();
 
     @Parameter(names = {"--tests", "-t"}, description = "Explicited Stack")
     public boolean tests = false;

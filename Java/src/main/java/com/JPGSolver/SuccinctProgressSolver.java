@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.LinkedList;
 import java.util.Queue;
+import java.util.concurrent.TimeUnit;
 
 /*
 TODO
@@ -20,6 +21,21 @@ TODO
 */
 
 public class SuccinctProgressSolver implements Solver {
+
+    Stopwatch sw1, sw2, sw3, sw4, sw5, sw6, sw7, sw8;
+
+    public SuccinctProgressSolver() {
+        sw1 = Stopwatch.createUnstarted();
+        sw2 = Stopwatch.createUnstarted();
+        sw3 = Stopwatch.createUnstarted();
+        sw4 = Stopwatch.createUnstarted();
+
+        sw5 = Stopwatch.createUnstarted();
+        sw6 = Stopwatch.createUnstarted();
+        sw7 = Stopwatch.createUnstarted();
+        sw8 = Stopwatch.createUnstarted();
+
+    }
 
     private int highestPriority;
 
@@ -58,13 +74,64 @@ public class SuccinctProgressSolver implements Solver {
         System.out.print("]");
     }
 
+    private long calcTreeSize() {
+        Measure m = new Measure(0);
+        long count = 0;
+        while (!m.isTop()) {
+            m = m.leastAbove(0);
+            count++;
+        }
+        return count;
+    }
+
+    long[][] treeSizes;
+
+    private long calcTreeSize_dp() {
+        int n = d / 2;
+        int b = maxBits;
+        treeSizes = new long[n + 1][b + 1];
+
+        return treeSizeRecurrence(n, b);
+    }
+
+    private long treeSizeRecurrence(int n, int b) {
+        // if this subtree was already calculated
+        // System.out.println("n = " + n + " b = " + b);
+        if (treeSizes[n][b] != 0) return treeSizes[n][b];
+
+        // if this is terminal
+        if (n == 1) {
+            if (b == 0) {
+                treeSizes[n][b] = 2;
+                // System.out.println("calcd as 2 (base case)");
+                return 2;
+            }
+
+            treeSizes[n][b] = (1 << b + 1);
+            // System.out.println("[" + n + "][" + b + "] calcd as " + treeSizes[n][b]);
+            return treeSizes[n][b];
+        } else {
+            // this is not terminal, sum layers below.
+            long temp = 0;
+            for (int i = 0; i <= b; i++) {
+                // System.out.println("[" + n + "][" + b + "] (1 << " + (b - i) + "): " + (1 << (b - i)));
+                temp += treeSizeRecurrence(n - 1, i) * (1 << (b - i));// + (1 << i);
+                // System.out.println("tsr[" + (n - 1) + "][" + i + "]: " + treeSizeRecurrence(n - 1, i) + " :. inc = " + (treeSizeRecurrence(n - 1, i) * (1 << (b - i))));
+                // System.out.println("[" + n + "][" + b + "] temp: " + temp);
+            }
+            treeSizes[n][b] = temp + 1;
+            // System.out.println("[" + n + "][" + b + "] calcd as " + treeSizes[n][b]);
+            return treeSizes[n][b];
+        }
+    }
+
     /*
         function called to solve the graph, returns the solution.
         Solution is 2 arrays, one for the winning region of player 0 (int[0][])
         and one for the winning region of player 1 (int[1][])
     */
     public int[][] win(Graph g) {
-        App.log_verbose("Solving with SuccinctProgressSolver");
+        // App.log_verbose("Solving with SuccinctProgressSolver");
 
         // find the highest priority, maxPriority function is weird so needs
         // a bitset
@@ -72,14 +139,20 @@ public class SuccinctProgressSolver implements Solver {
         BitSet nodesPresent = new BitSet(g.length());
         highestPriority = g.maxPriority(nodesPresent);
 
-        // calculate and set the maximum progress measure
         init(g.numOddNodes(), highestPriority);
 
         App.log_debug("highest Priority: " + highestPriority);
         App.log_debug("maxBits: " + maxBits);
         App.log_debug("d: " + d);
 
-        //initialise progress measures for all nodes
+        // Stopwatch swCount = Stopwatch.createStarted();
+        // long treeSize = calcTreeSize();
+        // swCount.stop();
+        // System.out.println("tree size:  " + treeSize + " calc in " + swCount);
+        long dp_treeSize = calcTreeSize_dp();
+        System.out.println("dpTreeSize: " + dp_treeSize);
+
+        // initialise progress measures for all nodes
         Measure[] progressMeasures = new Measure[g.length()];
         for (int i = 0; i < g.length(); i++) {
             progressMeasures[i] = new Measure(g.info[i].getPriority());
@@ -95,18 +168,23 @@ public class SuccinctProgressSolver implements Solver {
         }
 
         int numDequeues = 0;
+        int numFailedLifts = 0;
+        Stopwatch swLift = Stopwatch.createUnstarted();
 
         // attempt to lift each node on the queue
         Measure liftedMeasure;
         Node next;
         while(!q.isEmpty()) {
+            // try {Thread.sleep(100);} catch (Exception e) {}
+            // System.out.println("");
             numDequeues++;
             next = q.poll();
             nodesPresent.clear(next.getIndex());
-
-            App.log_verbose("  dequeue node " + next.getIndex());
+            App.log_debug("  dequeue node " + next.getIndex());
             App.log_debug("original measure: " + progressMeasures[next.getIndex()].toString());
+            swLift.start();
             liftedMeasure = lift(progressMeasures, next, g);
+            swLift.stop();
             App.log_debug("lifted measure: " + liftedMeasure.toString());
 
             // if a lift is successful, add all predecessors of that node to the queue.
@@ -121,10 +199,19 @@ public class SuccinctProgressSolver implements Solver {
                     }
                 }
                 progressMeasures[next.getIndex()] = liftedMeasure;
+            } else {
+                numFailedLifts++;
             }
+            // System.out.println("");
         }
 
         System.out.println("numDequeues: " + numDequeues);
+        // App.log_verbose("numFailedLifts: " + numFailedLifts);
+        // App.log_verbose("time lifting: " + swLift);
+        // App.log_verbose("  time checking lessthan: " + sw2);
+        // App.log_verbose("  time checking greaterthan: " + sw4);
+        // App.log_verbose("  time singly lifting: " + (sw1.elapsed(TimeUnit.MILLISECONDS) + sw3.elapsed(TimeUnit.MILLISECONDS)) + " ms");
+        // App.log_verbose("    time finding leastAbove: " + sw5);
 
         // once lifting is complete, populate solution object with...
         TIntArrayList evenWinningSet = new TIntArrayList();
@@ -159,10 +246,14 @@ public class SuccinctProgressSolver implements Solver {
             bestLiftedMeasure = new Measure(true);
             App.log_debug("Lifting from a p0 node");
             for (int i = 0; i < adjNodes.size(); i++) {
+                sw1.start();
                 newMeasure = singleLift(progressMeasures, node, g.info[adjNodes.get(i)]);
+                sw1.stop();
+                sw2.start();
                 if (newMeasure.lessThan(bestLiftedMeasure, node.getPriority())) {
                     bestLiftedMeasure = newMeasure;
                 }
+                sw2.stop();
                 App.log_debug("singly lifted to " + newMeasure.toString());
                 App.log_debug("current best " + bestLiftedMeasure.toString());
             }
@@ -172,10 +263,14 @@ public class SuccinctProgressSolver implements Solver {
             bestLiftedMeasure = new Measure(node.getPriority());
             App.log_debug("Lifting from a p1 node");
             for (int i = 0; i < adjNodes.size(); i++) {
+                sw3.start();
                 newMeasure = singleLift(progressMeasures, node, g.info[adjNodes.get(i)]);
+                sw3.stop();
+                sw4.start();
                 if (newMeasure.greaterThan(bestLiftedMeasure, node.getPriority())) {
                     bestLiftedMeasure = newMeasure;
                 }
+                sw4.stop();
                 App.log_debug("singly lifted to " + newMeasure.toString());
                 App.log_debug("current best " + bestLiftedMeasure.toString());
             }
@@ -441,13 +536,23 @@ public class SuccinctProgressSolver implements Solver {
 
         // returns the smallest element that is greater than the other measure
         public Measure leastAbove(int priority) {
+            sw5.start();
             // try { Thread.sleep(600); } catch (Exception e) {}
             // if other is top, return top
-            if (top) return new Measure(true);
+            if (top) {
+                sw5.stop();
+                return new Measure(true);
+            }
             // there are 5 cases as described in the paper:
 
             if (isCaseOne(priority)) {
                 return caseOne(priority);
+            }
+
+            // special case
+            if (maxBits == 0) {
+                sw5.stop();
+                return new Measure(true);
             }
 
             if (isCaseTwo(priority)) {
@@ -464,6 +569,7 @@ public class SuccinctProgressSolver implements Solver {
 
             // the last possibility is that other was the greates element
             // below top :. return top
+            sw5.stop();
             return new Measure(true);
         }
 
@@ -481,6 +587,7 @@ public class SuccinctProgressSolver implements Solver {
 
             if (res.bitsUsedUpToTrunc(priority) == maxBits) {
                 res.incNumberOfUsedTuples();
+                sw5.stop();
                 return res;
             }
             // create the tuple with all the remaining zeros
@@ -494,6 +601,7 @@ public class SuccinctProgressSolver implements Solver {
 
             res.setBitsUsed(maxBits);
             res.incNumberOfUsedTuples();
+            sw5.stop();
             return res;
         }
 
@@ -528,6 +636,7 @@ public class SuccinctProgressSolver implements Solver {
                 tuple.add(new Boolean(false));
             }
             result.calcBitsUsed();
+            sw5.stop();
             return result;
         }
 
@@ -568,6 +677,7 @@ public class SuccinctProgressSolver implements Solver {
             result.lowerNumUsedTuples(diff);
 
             result.calcBitsUsed();
+            sw5.stop();
             return result;
         }
 
@@ -620,6 +730,7 @@ public class SuccinctProgressSolver implements Solver {
             // result.decNumberOfUsedTuples();
             int diff = (position - lastPossibleTuplePosition(priority)) / 2;
             result.lowerNumUsedTuples(diff + 1);
+            sw5.stop();
             return result;
         }
 
@@ -657,7 +768,7 @@ public class SuccinctProgressSolver implements Solver {
                 return "<TOP>";
             }
 
-            if (measure.isEmpty()) {
+            if (measure.isEmpty() && numberOfUsedTuples == 0) {
                 return "[]";
             }
 

@@ -32,11 +32,26 @@ public class SmallProgressSolver implements Solver {
         for (int i = 0; i < g.length(); i++) {
             g.info[i].setPriority(mirror - g.info[i].getPriority());
         }
-        App.log_debug("Original Graph:");
-        App.log_debug(other.toString());
-        App.log_debug("Preprocessed Graph:");
-        App.log_debug(g.toString());
+
         return g;
+    }
+
+    private int calcTreeSize_slow(int highestPriority) {
+        Measure m = new Measure(highestPriority);
+        int count = 0;
+        while (!m.isTop()) {
+            m = m.leastAbove(highestPriority);
+            count++;
+        }
+        return count;
+    }
+
+    private long calcTreeSize() {
+        long count = 1;
+        for (int i = 0; i < max.length; i++) {
+            count *= (max[i] + 1);
+        }
+        return count;
     }
 
     /*
@@ -53,10 +68,15 @@ public class SmallProgressSolver implements Solver {
         BitSet nodesPresent = new BitSet(g.length());
         highestPriority = g.maxPriority(nodesPresent);
 
-
         g = preprocessGraph(g);
+
         // calculate and set the maximum progress measure
         initMax(g, highestPriority);
+        Stopwatch swCount = Stopwatch.createStarted();
+        long treeSize = calcTreeSize();
+        swCount.stop();
+        System.out.println("tree size: " + treeSize + " calc in " + swCount);
+
         App.log_debug(maxToString());
 
         //initialise progress measures for all nodes
@@ -74,6 +94,8 @@ public class SmallProgressSolver implements Solver {
         }
 
         int numDequeues = 0;
+        int numFailedLifts = 0;
+        Stopwatch swLift = Stopwatch.createUnstarted();
 
         // attempt to lift each node on the queue
         Measure liftedMeasure;
@@ -84,10 +106,12 @@ public class SmallProgressSolver implements Solver {
             next = q.poll();
             nodesPresent.clear(next.getIndex());
 
+            swLift.start();
             liftedMeasure = lift(progressMeasures, next, g);
+            swLift.stop();
 
             App.log_debug("");
-            App.log_verbose("   dequeue node " + next.getIndex());
+            App.log_debug("   dequeue node " + next.getIndex());
             App.log_debug("m: " + progressMeasures[next.getIndex()].toString());
             App.log_debug("lifted measure: ");
             App.log_debug(liftedMeasure.toString());
@@ -105,10 +129,15 @@ public class SmallProgressSolver implements Solver {
                     }
                 }
                 progressMeasures[next.getIndex()] = liftedMeasure;
+            } else {
+                numFailedLifts++;
             }
         }
 
         System.out.println("numDequeues: " + numDequeues);
+        App.log_verbose("numFailedLifts: " + numFailedLifts);
+        App.log_verbose("time lifting: " + swLift);
+        App.log_verbose("");
 
         // once lifting is complete, populate solution object with...
         TIntArrayList evenWinningSet = new TIntArrayList();
@@ -199,7 +228,6 @@ public class SmallProgressSolver implements Solver {
     }
 
     static int[] max;
-
 
     public static void setMax(int[] m) {
         max = m;

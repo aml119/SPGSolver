@@ -76,7 +76,7 @@ public class Graph {
     }
 
     public static Graph initFromFile(String file) {
-        System.out.println("Parsing Graph from .............. " + file);
+        // System.out.println("Parsing Graph from .............. " + file);
         Graph graph = null;
         try {
             BufferedReader bufferedReader = new BufferedReader(new FileReader(file));
